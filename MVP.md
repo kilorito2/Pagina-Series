@@ -3,7 +3,8 @@
 Foto completa de en qué quedó el proyecto: qué hace, con qué está construido,
 qué es real y qué es placeholder, qué se probó y qué falta para que sea un
 sitio en producción de verdad. El detalle fase por fase (con las decisiones
-tomadas en cada una) vive en [`README.md`](./README.md); este documento es
+tomadas en cada una) vive en [`HISTORY.md`](./HISTORY.md); la descripción
+general del proyecto está en [`README.md`](./README.md); este documento es
 el resumen ejecutivo.
 
 ## Qué es
@@ -166,8 +167,8 @@ depende de qué fuente tenga instalada quien lo genera): `favicon.ico`,
 
 Cada fase se probó de punta a punta contra una base Supabase real (no solo
 `build`/`lint`), con sesión real y limpiando los datos de prueba al
-terminar — el detalle está en cada sección del README. En esta última
-ronda, además:
+terminar — el detalle está en cada sección de [`HISTORY.md`](./HISTORY.md).
+En esta última ronda, además:
 
 - Recorrido funcional completo vía scripts de Node con sesión real
   (login, activar perfil, CRUD de género, reproductor, progreso, mi lista,
