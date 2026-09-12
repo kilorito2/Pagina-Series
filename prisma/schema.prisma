@@ -1,0 +1,426 @@
+// Schema de Prisma — AnimeVerse
+// Base de datos: PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  // Conexión pooled (pgbouncer, puerto 6543) — la usa la app en runtime.
+  url       = env("DATABASE_URL")
+  // Conexión directa (puerto 5432) — Prisma Migrate la necesita porque
+  // pgbouncer en modo transacción no soporta prepared statements.
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum RolUsuario {
+  USER
+  MOD
+  ADMIN
+}
+
+enum TipoToken {
+  VERIFICACION_EMAIL
+  RESET_PASSWORD
+}
+
+enum IdiomaAudio {
+  SUB
+  DUB
+}
+
+enum Calidad {
+  P480
+  P720
+  P1080
+}
+
+enum EstadoSerie {
+  EMISION
+  FINALIZADO
+  PROXIMAMENTE
+}
+
+enum TipoSerie {
+  TV
+  OVA
+  PELICULA
+  ESPECIAL
+  ONA
+}
+
+enum Clasificacion {
+  G
+  PG
+  PG13
+  R
+}
+
+enum EstadoLista {
+  VIENDO
+  COMPLETADO
+  PENDIENTE
+  ABANDONADO
+  FAVORITO
+}
+
+enum TipoReporte {
+  COMENTARIO
+  ENLACE_CAIDO
+}
+
+enum EstadoReporte {
+  PENDIENTE
+  REVISADO
+  DESCARTADO
+}
+
+enum TipoNotificacion {
+  NUEVO_EPISODIO
+  RESPUESTA_COMENTARIO
+  SISTEMA
+}
+
+enum TemaPerfil {
+  CLARO
+  OSCURO
+  SISTEMA
+}
+
+// ---------------------------------------------------------------------------
+// Usuarios y perfiles
+// ---------------------------------------------------------------------------
+
+model User {
+  id             String     @id @default(cuid())
+  email          String     @unique
+  passwordHash   String?
+  role           RolUsuario @default(USER)
+  emailVerified  DateTime?
+  baneado        Boolean    @default(false)
+  motivoBaneo    String?
+  // "Cerrar sesión en todos los dispositivos": cualquier JWT emitido antes
+  // de esta fecha se invalida (ver callback jwt() en lib/auth.ts).
+  sesionesInvalidadasEn DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  cuentas      Account[]
+  sesiones     Session[]
+  perfiles     Profile[]
+  tokensAccion TokenAccion[]
+
+  @@index([email])
+  @@map("usuarios")
+}
+
+// Tablas requeridas por el adapter de Auth.js (Prisma Adapter)
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("cuentas_oauth")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sesiones")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("tokens_verificacion")
+}
+
+// Tokens propios para verificación de email y recuperación de contraseña
+// (independientes de VerificationToken, que es de uso interno del adapter).
+model TokenAccion {
+  id        String    @id @default(cuid())
+  userId    String
+  tipo      TipoToken
+  token     String    @unique
+  expira    DateTime
+  usado     Boolean   @default(false)
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, tipo])
+  @@map("tokens_accion")
+}
+
+model Profile {
+  id                String      @id @default(cuid())
+  userId            String
+  nombre            String
+  avatar            String
+  idiomaPreferido   IdiomaAudio @default(SUB)
+  calidadPorDefecto Calidad     @default(P1080)
+  autoplay          Boolean     @default(true)
+  esInfantil        Boolean     @default(false)
+  tema              TemaPerfil  @default(SISTEMA)
+  notificacionesActivas Boolean @default(true)
+  createdAt         DateTime    @default(now())
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  progresos     Progreso[]
+  listaItems    ListaItem[]
+  valoraciones  Valoracion[]
+  comentarios   Comentario[]
+  notificaciones Notificacion[]
+
+  @@index([userId])
+  @@map("perfiles")
+}
+
+// ---------------------------------------------------------------------------
+// Catálogo
+// ---------------------------------------------------------------------------
+
+model Serie {
+  id                String        @id @default(cuid())
+  titulo            String
+  tituloAlternativo String?
+  tituloOriginal    String?
+  slug              String        @unique
+  sinopsis          String        @db.Text
+  poster            String
+  banner            String?
+  anio              Int
+  estado            EstadoSerie   @default(EMISION)
+  tipo              TipoSerie     @default(TV)
+  clasificacion     Clasificacion @default(PG13)
+  estudio           String?
+  ratingPromedio    Float         @default(0)
+  vistas            Int           @default(0)
+  destacada         Boolean       @default(false)
+  fuenteExternaId   String? // id en Jikan/AniList, para evitar duplicados al importar
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  generos      GeneroEnSerie[]
+  temporadas   Temporada[]
+  listaItems   ListaItem[]
+  valoraciones Valoracion[]
+  comentarios  Comentario[]
+
+  @@index([slug])
+  @@index([titulo])
+  @@index([estado])
+  @@index([destacada])
+  @@map("series")
+}
+
+model Genero {
+  id     String @id @default(cuid())
+  nombre String @unique
+  slug   String @unique
+
+  series GeneroEnSerie[]
+
+  @@index([slug])
+  @@map("generos")
+}
+
+// Tabla intermedia explícita N:M Serie <-> Genero
+model GeneroEnSerie {
+  serieId  String
+  generoId String
+
+  serie  Serie  @relation(fields: [serieId], references: [id], onDelete: Cascade)
+  genero Genero @relation(fields: [generoId], references: [id], onDelete: Cascade)
+
+  @@id([serieId, generoId])
+  @@index([generoId])
+  @@map("generos_en_series")
+}
+
+model Temporada {
+  id      String @id @default(cuid())
+  serieId String
+  numero  Int
+  titulo  String?
+  anio    Int?
+
+  serie     Serie      @relation(fields: [serieId], references: [id], onDelete: Cascade)
+  episodios Episodio[]
+
+  @@unique([serieId, numero])
+  @@index([serieId])
+  @@map("temporadas")
+}
+
+model Episodio {
+  id            String    @id @default(cuid())
+  temporadaId   String
+  numero        Int
+  titulo        String?
+  sinopsis      String?   @db.Text
+  duracionMin   Int?
+  thumbnail     String?
+  fechaEmision  DateTime?
+  vistas        Int       @default(0)
+  createdAt     DateTime  @default(now())
+
+  temporada    Temporada      @relation(fields: [temporadaId], references: [id], onDelete: Cascade)
+  fuentes      FuenteVideo[]
+  progresos    Progreso[]
+  comentarios  Comentario[]
+
+  @@unique([temporadaId, numero])
+  @@index([temporadaId])
+  @@index([fechaEmision])
+  @@map("episodios")
+}
+
+model FuenteVideo {
+  id          String      @id @default(cuid())
+  episodioId  String
+  servidor    String
+  url         String
+  calidad     Calidad     @default(P1080)
+  idioma      IdiomaAudio @default(SUB)
+  esActiva    Boolean     @default(true)
+  reportesCaido Int       @default(0)
+  createdAt   DateTime    @default(now())
+
+  episodio Episodio @relation(fields: [episodioId], references: [id], onDelete: Cascade)
+
+  @@index([episodioId])
+  @@map("fuentes_video")
+}
+
+// ---------------------------------------------------------------------------
+// Interacción del usuario
+// ---------------------------------------------------------------------------
+
+model Progreso {
+  id             String   @id @default(cuid())
+  profileId      String
+  episodioId     String
+  segundoActual  Int      @default(0)
+  duracionTotal  Int      @default(0)
+  completado     Boolean  @default(false)
+  updatedAt      DateTime @updatedAt
+
+  profile  Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  episodio Episodio @relation(fields: [episodioId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, episodioId])
+  @@index([profileId])
+  @@index([episodioId])
+  @@map("progreso")
+}
+
+model ListaItem {
+  id        String      @id @default(cuid())
+  profileId String
+  serieId   String
+  estado    EstadoLista @default(PENDIENTE)
+  createdAt DateTime    @default(now())
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  serie   Serie   @relation(fields: [serieId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, serieId])
+  @@index([profileId])
+  @@index([serieId])
+  @@map("lista_items")
+}
+
+model Valoracion {
+  id        String   @id @default(cuid())
+  profileId String
+  serieId   String
+  puntaje   Int
+  createdAt DateTime @default(now())
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  serie   Serie   @relation(fields: [serieId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, serieId])
+  @@index([serieId])
+  @@map("valoraciones")
+}
+
+model Comentario {
+  id         String   @id @default(cuid())
+  profileId  String
+  serieId    String?
+  episodioId String?
+  parentId   String?
+  contenido  String   @db.Text
+  spoiler    Boolean  @default(false)
+  eliminado  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  profile  Profile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  serie    Serie?       @relation(fields: [serieId], references: [id], onDelete: Cascade)
+  episodio Episodio?    @relation(fields: [episodioId], references: [id], onDelete: Cascade)
+  parent   Comentario?  @relation("RespuestasComentario", fields: [parentId], references: [id], onDelete: Cascade)
+  respuestas Comentario[] @relation("RespuestasComentario")
+
+  @@index([profileId])
+  @@index([serieId])
+  @@index([episodioId])
+  @@index([parentId])
+  @@map("comentarios")
+}
+
+model Reporte {
+  id            String        @id @default(cuid())
+  tipo          TipoReporte
+  referenciaId  String
+  motivo        String
+  estado        EstadoReporte @default(PENDIENTE)
+  createdAt     DateTime      @default(now())
+
+  @@index([tipo, estado])
+  @@index([referenciaId])
+  @@map("reportes")
+}
+
+model Notificacion {
+  id        String           @id @default(cuid())
+  profileId String
+  tipo      TipoNotificacion
+  mensaje   String
+  leida     Boolean          @default(false)
+  link      String?
+  createdAt DateTime         @default(now())
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, leida])
+  @@map("notificaciones")
+}

@@ -1,0 +1,385 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* Sólo donde hay puntero fino (mouse/trackpad). En touch el :hover queda
+   pegado después del tap y la tarjeta se ve trabada al volver atrás.
+   Se usa para el *movimiento* del hover; la revelación de texto (opacidad)
+   queda sin gatear para no esconder información. */
+@custom-variant puntero-fino (@media (hover: hover) and (pointer: fine));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  /* OJO: estas tres apuntan a las variables que inyecta next/font en <html>
+     (ver app/layout.tsx). Si acá se pusiera `var(--font-sans)` la variable
+     quedaría sin definir y todo el sitio caería al serif del navegador. */
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-geist-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  /* Acento de marca (celeste): reservado para progreso, chips SUB/DUB y detalles puntuales. */
+  --color-brand-accent: var(--brand-accent);
+  --color-brand-accent-foreground: var(--brand-accent-foreground);
+  /* Tono de hover deliberado para el primary (paleta "Blue Cinema"), en vez
+     del bg-primary/80 genérico que usa shadcn por defecto. */
+  --color-primary-hover: var(--primary-hover);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* --- Curvas de easing ---------------------------------------------------
+     Las built-in de CSS son demasiado suaves para UI: el movimiento se lee
+     blando. Estas son las curvas fuertes. Regla: entradas/salidas -> out;
+     movimiento dentro de pantalla -> in-out; nunca ease-in en UI (arranca
+     lento justo en el momento que el usuario está mirando). */
+  --ease-out-fuerte: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out-fuerte: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Tema claro — paleta "Blue Cinema" */
+:root {
+  --background: #f8fafc;
+  --foreground: #080d18;
+  --card: #ffffff;
+  --card-foreground: #080d18;
+  --popover: #ffffff;
+  --popover-foreground: #080d18;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-foreground: #ffffff;
+  --secondary: #eef2fa;
+  --secondary-foreground: #080d18;
+  --muted: #eef2fa;
+  --muted-foreground: #5b6b85;
+  --accent: #e4ecfb;
+  --accent-foreground: #1d4ed8;
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #2563eb;
+  --brand-accent: #38bdf8;
+  --brand-accent-foreground: #072a44;
+  --chart-1: #2563eb;
+  --chart-2: #38bdf8;
+  --chart-3: #f472b6;
+  --chart-4: #facc15;
+  --chart-5: #34d399;
+  --radius: 0.75rem;
+  --sidebar: #f1f5f9;
+  --sidebar-foreground: #080d18;
+  --sidebar-primary: #2563eb;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e4ecfb;
+  --sidebar-accent-foreground: #1d4ed8;
+  --sidebar-border: #e2e8f0;
+  --sidebar-ring: #2563eb;
+
+  /* Elevación de las tarjetas (poster / episodio). El hover suma un halo del
+     primary: es lo que da la sensación de "encendido" sin subir el brillo. */
+  --sombra-card: 0 1px 2px rgb(8 13 24 / 0.06), 0 10px 24px -14px rgb(8 13 24 / 0.28);
+  --sombra-card-hover: 0 2px 6px rgb(8 13 24 / 0.1), 0 22px 44px -18px rgb(37 99 235 / 0.45);
+}
+
+/* Tema oscuro (por defecto) — paleta "Blue Cinema" */
+.dark {
+  --background: #080d18;
+  --foreground: #f8fafc;
+  --card: #0f1626;
+  --card-foreground: #f8fafc;
+  --popover: #0f1626;
+  --popover-foreground: #f8fafc;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-foreground: #ffffff;
+  --secondary: #16233d;
+  --secondary-foreground: #f8fafc;
+  --muted: #131c30;
+  --muted-foreground: #93a1be;
+  --accent: #1a2740;
+  --accent-foreground: #93c5fd;
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: color-mix(in oklch, white 10%, transparent);
+  --input: color-mix(in oklch, white 14%, transparent);
+  --ring: #2563eb;
+  --brand-accent: #38bdf8;
+  --brand-accent-foreground: #072a44;
+  --chart-1: #3b82f6;
+  --chart-2: #38bdf8;
+  --chart-3: #f472b6;
+  --chart-4: #facc15;
+  --chart-5: #34d399;
+  --sidebar: #0a101c;
+  --sidebar-foreground: #f8fafc;
+  --sidebar-primary: #2563eb;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1a2740;
+  --sidebar-accent-foreground: #93c5fd;
+  --sidebar-border: color-mix(in oklch, white 10%, transparent);
+  --sidebar-ring: #2563eb;
+
+  --sombra-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 12px 28px -14px rgb(0 0 0 / 0.7);
+  --sombra-card-hover: 0 2px 8px rgb(0 0 0 / 0.5), 0 26px 52px -20px rgb(56 189 248 / 0.4);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    /* Evita el salto horizontal de toda la página cuando aparece o
+       desaparece la scrollbar (al abrir un diálogo, al cambiar de ruta). */
+    scrollbar-gutter: stable;
+  }
+  html {
+    @apply font-sans;
+  }
+
+  /* Anclas internas (ficha -> lista de episodios, paginación) con scroll
+     suave, salvo que el sistema pida menos movimiento. */
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
+
+  ::selection {
+    background-color: color-mix(in oklch, var(--primary) 35%, transparent);
+    color: var(--foreground);
+  }
+
+  /* La scrollbar por defecto del navegador rompe la estética en dark. */
+  @supports (scrollbar-width: thin) {
+    html {
+      scrollbar-width: thin;
+      scrollbar-color: color-mix(in oklch, var(--muted-foreground) 40%, transparent) transparent;
+    }
+  }
+
+  /* Un poster que no carga (host caído, imagen borrada) queda como un hueco
+     transparente; con esto al menos se ve como un bloque neutro. */
+  img {
+    background-color: var(--muted);
+  }
+}
+
+@layer utilities {
+  /* Carrusel horizontal con snap, usado en Home y filas de género */
+  .carrusel {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .carrusel::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Difuminado de los bordes del carrusel: las tarjetas "entran y salen" en
+     vez de cortarse a filo. El componente ajusta las variables según haya
+     scroll disponible de cada lado. */
+  .carrusel-mask {
+    --mask-izq: 0px;
+    --mask-der: 0px;
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      black var(--mask-izq),
+      black calc(100% - var(--mask-der)),
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      black var(--mask-izq),
+      black calc(100% - var(--mask-der)),
+      transparent 100%
+    );
+  }
+
+  /* --- Scroll reveal ------------------------------------------------------
+     Transición (no keyframes) para que se pueda interrumpir. El estado
+     visible lo pone <Revelar> con data-visible. */
+  [data-revelar] {
+    opacity: 0;
+    transform: translateY(14px);
+    transition:
+      opacity 520ms var(--ease-out-fuerte),
+      transform 520ms var(--ease-out-fuerte);
+    transition-delay: var(--revelar-delay, 0ms);
+  }
+  [data-revelar][data-visible="true"] {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* Ken Burns del banner del hero: deriva lentísima. No se lee como
+     "animación", pero evita que la portada se vea muerta. */
+  .kenburns {
+    animation: kenburns 24s var(--ease-in-out-fuerte) infinite alternate;
+  }
+  @keyframes kenburns {
+    from {
+      transform: scale(1.06) translate3d(0, 0, 0);
+    }
+    to {
+      transform: scale(1.14) translate3d(-1.2%, -1.4%, 0);
+    }
+  }
+
+  /* Barra de progreso del autoplay del hero (movimiento constante -> linear). */
+  .barra-autoplay {
+    transform-origin: left;
+    animation: barra-autoplay var(--autoplay-duracion, 7000ms) linear forwards;
+  }
+  @keyframes barra-autoplay {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
+    }
+  }
+
+  /* Shimmer de los skeletons: lee como "esto está cargando", mientras que el
+     pulse plano lee como "hay un bloque gris". */
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background-image: linear-gradient(
+      90deg,
+      transparent 0,
+      color-mix(in oklch, var(--foreground) 7%, transparent) 50%,
+      transparent 100%
+    );
+    animation: shimmer 1.6s linear infinite;
+  }
+  @keyframes shimmer {
+    to {
+      transform: translateX(100%);
+    }
+  }
+
+  /* Latido del badge "Nuevo": sólo opacidad, no mueve layout. */
+  .latido {
+    animation: latido 2.4s var(--ease-in-out-fuerte) infinite;
+  }
+  @keyframes latido {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.6;
+    }
+  }
+
+  /* Elevación de tarjeta. Sólo con puntero fino: en touch el :hover queda
+     pegado después del tap y la tarjeta se ve "trabada". */
+  .tarjeta-elevar {
+    transition:
+      transform 220ms var(--ease-out-fuerte),
+      box-shadow 220ms var(--ease-out-fuerte);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .tarjeta-elevar:hover {
+      transform: translateY(-6px);
+      box-shadow: var(--sombra-card-hover);
+    }
+  }
+  .tarjeta-elevar:focus-visible,
+  .tarjeta-elevar:has(:focus-visible) {
+    transform: translateY(-6px);
+    box-shadow: var(--sombra-card-hover);
+  }
+
+  /* Subrayado que crece desde el centro, para nav y enlaces "Ver todo". */
+  .link-subrayado {
+    position: relative;
+  }
+  .link-subrayado::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -3px;
+    height: 1.5px;
+    border-radius: 2px;
+    background-color: currentColor;
+    transform: scaleX(0);
+    transition: transform 200ms var(--ease-out-fuerte);
+  }
+  .link-subrayado:hover::after,
+  .link-subrayado:focus-visible::after {
+    transform: scaleX(1);
+  }
+}
+
+/* --- Menos movimiento -----------------------------------------------------
+   No es "cero animación": se conservan opacidad y color (ayudan a entender el
+   cambio) y se sacan los desplazamientos y los loops decorativos. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .kenburns,
+  .shimmer::after,
+  .latido,
+  .barra-autoplay {
+    animation: none !important;
+  }
+  .kenburns {
+    transform: scale(1.06);
+  }
+  [data-revelar] {
+    transform: none;
+    transition:
+      opacity 200ms linear,
+      transform 0ms;
+  }
+  .tarjeta-elevar:hover,
+  .tarjeta-elevar:focus-visible,
+  .tarjeta-elevar:has(:focus-visible) {
+    transform: none;
+  }
+}
